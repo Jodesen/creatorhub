@@ -365,8 +365,8 @@ async function refreshOverviewChart() {
 // ─── 平台切换(抖音 / 小红书) ───
 let PLATFORM = "douyin";
 const PF_NAME = { douyin: "抖音", xhs: "小红书", kuaishou: "快手" };
-// 是否支持「发布」面板(小红书 / 快手有,抖音无)
-function pfHasPublish(pf) { return pf === "xhs" || pf === "kuaishou"; }
+// 是否支持「发布」面板(抖音 / 小红书 / 快手均有)
+function pfHasPublish(pf) { return pf === "xhs" || pf === "kuaishou" || pf === "douyin"; }
 function switchPlatform(pf) {
   if (pf !== "douyin" && pf !== "xhs" && pf !== "kuaishou") pf = "douyin";
   PLATFORM = pf;
@@ -386,16 +386,18 @@ function applyPlatformUI() {
   document.querySelectorAll(".dy-only").forEach(e => e.classList.toggle("hidden", PLATFORM !== "douyin"));
   document.querySelectorAll(".xhs-only").forEach(e => e.classList.toggle("hidden", PLATFORM !== "xhs"));
   document.querySelectorAll(".ks-only").forEach(e => e.classList.toggle("hidden", PLATFORM !== "kuaishou"));
-  // 发布面板入口:小红书 / 快手显示
+  // 发布面板入口:抖音 / 小红书 / 快手均显示
   document.querySelectorAll(".pub-only").forEach(e => e.classList.toggle("hidden", !pfHasPublish(PLATFORM)));
-  // 发布面板文案随平台(快手 vs 小红书)切换
-  const ks = PLATFORM === "kuaishou";
+  // 发布面板文案随平台切换
+  const ks = PLATFORM === "kuaishou", dy = PLATFORM === "douyin";
   const pubSub = $("pub-head-sub");
-  if (pubSub) pubSub.textContent = ks
-    ? "上传图集 / 视频到快手创作平台(实验性)" : "上传图集 / 视频到小红书(实验性)";
-  if ($("pub-head-lead")) $("pub-head-lead").textContent = ks ? "发布作品" : "发布笔记";
-  if ($("pub-title")) $("pub-title").placeholder = ks ? "给作品起个标题" : "给笔记起个标题";
-  if ($("pub-hint")) $("pub-hint").textContent = ks
+  if (pubSub) pubSub.textContent = dy ? "上传图集 / 视频到抖音创作平台(实验性)"
+    : ks ? "上传图集 / 视频到快手创作平台(实验性)" : "上传图集 / 视频到小红书(实验性)";
+  if ($("pub-head-lead")) $("pub-head-lead").textContent = (ks || dy) ? "发布作品" : "发布笔记";
+  if ($("pub-title")) $("pub-title").placeholder = (ks || dy) ? "给作品起个标题" : "给笔记起个标题";
+  if ($("pub-hint")) $("pub-hint").textContent = dy
+    ? "发布通过自动化抖音创作平台(creator.douyin.com)完成,会弹出浏览器窗口;若遇滑块验证/需补封面/定位话题可在窗口里手动处理。视频上传后需等转码,发布稍慢。定时任务由后台引擎到点执行。"
+    : ks
     ? "发布通过自动化快手创作平台(cp.kuaishou.com)完成,会弹出浏览器窗口;若遇验证码/需补封面可在窗口里手动处理。定时任务由后台引擎到点执行。"
     : "发布通过自动化小红书创作平台完成,会弹出浏览器窗口;若遇验证码/需补封面可在窗口里手动处理。定时任务由后台引擎到点执行。";
   // 评论监控「类型」下拉随平台改写文案
@@ -426,7 +428,7 @@ function applyPlatformUI() {
     : "从浏览器开发者工具复制完整 Cookie";
   applyMonitorForm();
   if ($("t-kind") && PLATFORM !== "xhs") $("t-kind").value = "creator";
-  // 抖音没有「发布」面板:若正停在该面板则回到总览
+  // 不支持发布的平台:若正停在该面板则回到总览(当前三平台均支持,兜底保留)
   if (!pfHasPublish(PLATFORM)) {
     const pub = document.querySelector('[data-panel="publish"]');
     if (pub && pub.style.display !== "none") switchTab("overview");
@@ -1827,10 +1829,11 @@ document.addEventListener("keydown", e => {
 // ─── 发布到小红书 ───
 function populatePubAcc() {
   const sel = $("pub-acc"); if (!sel) return;
-  // 小红书发布需创作者号;快手发布有登录态即可(走浏览器自动化)
+  // 小红书发布需创作者号;抖音 / 快手发布有登录态即可(走浏览器自动化)
   const list = PLATFORM === "xhs" ? ACCOUNTS.filter(a => a.has_creator) : ACCOUNTS;
   const ph = list.length ? "选择发布账号"
-    : (PLATFORM === "kuaishou" ? "请先完成「快手扫码/创作者登录」" : "请先完成「小红书创作者登录」");
+    : (PLATFORM === "kuaishou" ? "请先完成「快手扫码/创作者登录」"
+      : PLATFORM === "douyin" ? "请先完成「抖音扫码/创作者登录」" : "请先完成「小红书创作者登录」");
   sel.innerHTML = accOptions(list, ph);
   if (list.length) sel.value = String(list[0].id);
 }
@@ -1878,7 +1881,7 @@ function bindPubFilePicker() {
 }
 async function addPublish() {
   const acc = $("pub-acc").value;
-  if (!acc) { toast(PLATFORM === "kuaishou" ? "请选择快手账号" : "请选择小红书账号", "err"); return; }
+  if (!acc) { toast("请选择" + (PF_NAME[PLATFORM] || "发布") + "账号", "err"); return; }
   const files = $("pub-files").files;
   if (!files.length) { toast("请先选择要发布的文件", "err"); return; }
   const btn = evtBtn();
@@ -1918,8 +1921,10 @@ async function refreshPublish() {
     <td class="acttd">
       ${(t.status !== "done" && t.status !== "publishing") ? `<button class="ghost sm" onclick="runPublish(${t.id})">立即发布</button>` : ""}
       <button class="ghost sm" onclick="delPublish(${t.id})">删除</button>
-    </td></tr>`).join("") || empty(7, "暂无发布任务", "i-send", PLATFORM === "kuaishou"
-      ? "上传图集/视频加入队列(发布到快手创作平台)" : "上传图集/视频加入队列,或在抖音作品上点「发小红书」转发过来");
+    </td></tr>`).join("") || empty(7, "暂无发布任务", "i-send",
+      PLATFORM === "kuaishou" ? "上传图集/视频加入队列(发布到快手创作平台)"
+      : PLATFORM === "douyin" ? "上传图集/视频加入队列(发布到抖音创作平台)"
+      : "上传图集/视频加入队列,或在抖音作品上点「发小红书」转发过来");
 }
 async function runPublish(id) {
   const btn = evtBtn();

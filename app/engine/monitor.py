@@ -26,7 +26,8 @@ from . import compose
 from ..config import Config
 from ..db import get_session
 from ..platforms.douyin import (parse_aweme, parse_comment, parse_creator_comment,
-                      parse_self_user, DouyinClient, cookie_from_state as dy_cookie_from_state)
+                      parse_self_user, DouyinClient, publish_douyin,
+                      cookie_from_state as dy_cookie_from_state)
 from ..platforms.douyin.extract import Aweme, MediaItem
 from ..platforms.xhs import (parse_note_brief, parse_note_detail,
                    parse_comment as parse_xhs_comment,
@@ -1056,6 +1057,19 @@ class MonitorEngine:
                 ok, url, err = False, "", f"发布异常: {e!r}"
             return await self._finish_publish(task_id, ok, url, err, platform="kuaishou")
 
+        if platform == "douyin":
+            # 抖音发布:同快手走浏览器自动化,登录态在该账号持久 profile 里
+            if not state:
+                return await self._finish_publish(
+                    task_id, False, "", "该账号未完成抖音「创作者登录」,请先在账号页点「创作者登录」")
+            try:
+                ok, url, err = await publish_douyin(self.browser, identity, state,
+                                                    media_type, title, desc, files,
+                                                    topics=topics, headed=True)
+            except Exception as e:
+                ok, url, err = False, "", f"发布异常: {e!r}"
+            return await self._finish_publish(task_id, ok, url, err, platform="douyin")
+
         if not state:
             return await self._finish_publish(
                 task_id, False, "", "该账号未完成小红书「创作者登录」,请先在账号页点「创作者登录」")
@@ -1083,7 +1097,7 @@ class MonitorEngine:
                                    .where(NotificationChannel.enabled == True)).all()  # noqa: E712
                     channels = [{"type": c.type, "config": _loads(c.config)} for c in chans]
                 if channels:
-                    pname = "快手" if platform == "kuaishou" else "小红书"
+                    pname = {"kuaishou": "快手", "douyin": "抖音"}.get(platform, "小红书")
                     await notify_all(channels, f"{pname}发布成功", url or "已发布一条作品")
             except Exception:
                 pass

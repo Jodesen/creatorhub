@@ -2141,13 +2141,13 @@ async def add_publish(body: PublishIn):
         raise HTTPException(400, "没有可用的媒体文件,请先上传")
     with get_session() as s:
         acc = s.get(DouyinAccount, body.account_id)
-        if not acc or acc.platform not in ("xhs", "kuaishou"):
-            raise HTTPException(400, "请选择一个已登录的小红书 / 快手账号")
-        pname = "快手" if acc.platform == "kuaishou" else "小红书"
-        if acc.platform == "kuaishou":
-            # 快手发布走浏览器自动化,登录态在该账号持久 profile 里;有任一登录态即可
+        if not acc or acc.platform not in ("xhs", "kuaishou", "douyin"):
+            raise HTTPException(400, "请选择一个已登录的抖音 / 小红书 / 快手账号")
+        pname = {"kuaishou": "快手", "douyin": "抖音"}.get(acc.platform, "小红书")
+        if acc.platform in ("kuaishou", "douyin"):
+            # 抖音 / 快手发布走浏览器自动化,登录态在该账号持久 profile 里;需创作者登录态
             if not (acc.creator_storage_state or acc.storage_state):
-                raise HTTPException(400, "该快手账号不可发布:请先完成「快手扫码登录」或「创作者登录」")
+                raise HTTPException(400, f"该{pname}账号不可发布:请先在账号页完成「创作者登录」")
         elif not (acc.creator_storage_state or has_creator_cookies(acc.storage_state)):
             raise HTTPException(400, "该账号不可发布:请对该号完成「小红书扫码登录」或「创作者登录」")
         t = PublishTask(
