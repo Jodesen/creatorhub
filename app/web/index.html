@@ -1285,14 +1285,14 @@
 <div id="repost" class="pv-overlay" style="display:none" onclick="if(event.target.id==='repost')hideRepost()" role="dialog" aria-modal="true">
   <div class="rp-box">
     <button class="pv-close" onclick="hideRepost()" aria-label="关闭"><svg><use href="#i-x"/></svg></button>
-    <h2>发小红书 · 编辑后推送</h2>
+    <h2 id="rp-head">发小红书 · 编辑后推送</h2>
     <div class="stack">
       <div>
         <label class="field" for="rp-acc">发布账号</label>
         <select id="rp-acc" aria-label="发布账号"></select>
       </div>
       <div>
-        <label class="field" for="rp-title">标题(≤20 字)</label>
+        <label class="field" for="rp-title" id="rp-title-label">标题(≤20 字)</label>
         <input id="rp-title" maxlength="20" placeholder="给笔记起个标题">
       </div>
       <div>

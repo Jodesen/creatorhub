@@ -1636,6 +1636,7 @@ async function refreshContents() {
       <span class="pill ${r.download_status}">${r.download_status}</span>${r.error ? ` <span class="warn-ic" title="${esc(r.error)}">${ic("i-info")}</span>` : ""}
       ${r.download_status === "failed" ? ` <button class="ghost sm" onclick="retryDl(${r.id})">重试</button>` : ""}
       ${(PLATFORM === "douyin" && r.download_status === "done") ? ` <button class="ghost sm" onclick="repostXhs(${r.id})">发小红书</button>` : ""}
+      ${(PLATFORM === "xhs" && r.download_status === "done") ? ` <button class="ghost sm" onclick="repostDouyin(${r.id})">发抖音</button>` : ""}
       <button class="ghost sm" onclick="delContent(${r.id})">删除</button>
     </td>
     <td class="mut num" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.local_path || "")}">${esc(r.local_path || "")}</td>
@@ -1998,16 +1999,30 @@ async function _pickXhsAccount(withOff) {
   return +v;
 }
 let REPOST_ID = null;
-async function repostXhs(id) {
+let REPOST_TARGET = "xhs";           // 转发目标平台:xhs(抖音→小红书) | douyin(小红书→抖音)
+const repostXhs = (id) => openRepost(id, "xhs");
+const repostDouyin = (id) => openRepost(id, "douyin");
+async function openRepost(id, target) {
   const rec = CONTENTS.find(r => r.id === id);
-  // 拉取可发布的小红书创作号填充下拉
-  const all = await api("/api/accounts?platform=xhs");
-  const accs = all.filter(a => a.has_creator);
-  if (!accs.length) { toast("请先在小红书账号页完成「创作者登录」(发布用)", "err"); return; }
-  REPOST_ID = id;
+  // 拉取目标平台可发布账号:小红书需创作号;抖音需任一登录态(走浏览器自动化)
+  const all = await api("/api/accounts?platform=" + target);
+  const accs = target === "xhs"
+    ? all.filter(a => a.has_creator)
+    : all.filter(a => a.has_storage || a.has_creator);
+  if (!accs.length) {
+    toast(target === "xhs" ? "请先在小红书账号页完成「创作者登录」(发布用)"
+      : "请先在抖音账号页完成登录(扫码/创作者/Cookie)", "err");
+    return;
+  }
+  REPOST_ID = id; REPOST_TARGET = target;
+  const isDy = target === "douyin", cap = isDy ? 30 : 20;
+  $("rp-head").textContent = (isDy ? "发抖音" : "发小红书") + " · 编辑后推送";
+  $("rp-title-label").textContent = `标题(≤${cap} 字)`;
+  $("rp-title").maxLength = cap;
+  $("rp-title").placeholder = isDy ? "给作品起个标题" : "给笔记起个标题";
   $("rp-acc").innerHTML = accs.map(a => `<option value="${a.id}">${esc(a.nickname)}</option>`).join("");
   const desc = (rec && rec.desc) || "";
-  $("rp-title").value = desc.slice(0, 20);   // 默认用作品描述前 20 字当标题
+  $("rp-title").value = desc.slice(0, cap);   // 默认用作品描述前若干字当标题
   $("rp-desc").value = desc;
   $("rp-topics").value = "";
   $("rp-when").value = ""; dtSyncAll();
@@ -2031,11 +2046,12 @@ async function submitRepost() {
     topics: $("rp-topics").value.trim(),
     scheduled_at: $("rp-when").value || null,
   };
+  const pname = REPOST_TARGET === "douyin" ? "抖音" : "小红书";
   try {
-    const r = await api("/api/contents/" + REPOST_ID + "/repost-xhs", {
+    const r = await api("/api/contents/" + REPOST_ID + "/repost-" + REPOST_TARGET, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
-    toast((body.scheduled_at ? "已加入定时发布队列" : "已加入小红书发布队列") + "(任务 #" + r.task_id + ")", "ok");
+    toast((body.scheduled_at ? "已加入定时发布队列" : `已加入${pname}发布队列`) + "(任务 #" + r.task_id + ")", "ok");
     hideRepost();
     if (typeof refreshPublish === "function") refreshPublish();
   } catch (e) { $("rp-msg").textContent = "失败:" + e.message; toast("转发失败:" + e.message, "err"); btn.disabled = false; }
