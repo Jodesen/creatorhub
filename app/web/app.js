@@ -2029,9 +2029,33 @@ async function openRepost(id, target) {
   $("rp-when").value = ""; dtSyncAll();
   $("rp-msg").textContent = "";
   $("rp-src").textContent = rec ? `来源:${rec.media_type === "images" ? "图集" : "视频"} · ${esc((rec.desc || "(无描述)").slice(0, 30))}` : "";
+  // 抖音发布设置(可见性 / 保存权限)仅目标为抖音时显示
+  if ($("rp-dy-opts")) $("rp-dy-opts").style.display = isDy ? "flex" : "none";
+  if (isDy) { if ($("rp-visibility")) $("rp-visibility").value = "public"; if ($("rp-allowsave")) $("rp-allowsave").value = "1"; }
+  renderRepostThumbs(id);   // 异步拉媒体缩略图,不阻塞弹窗
   $("rp-submit").disabled = false;
   $("repost").style.display = "flex";
   $("rp-title").focus();
+}
+async function renderRepostThumbs(id) {
+  const box = $("rp-thumbs"); if (!box) return;
+  box.style.display = "none"; box.innerHTML = "";
+  try {
+    const d = await api("/api/contents/" + id + "/media");
+    if (REPOST_ID !== id) return;   // 弹窗已切换/关闭
+    const vid = (d.medias || []).find(m => m.kind === "video");
+    let items;
+    if (d.media_type === "video" && vid) {
+      items = [`<div class="rp-th-ph" onclick="openPreview(${id})" title="点击预览视频">${ic("i-play")}</div>`];
+    } else {
+      const imgs = (d.medias || []).filter(m => m.kind === "image").map(m => m.url);
+      const list = (imgs.length ? imgs : (d.cover_url ? [d.cover_url] : [])).slice(0, 6);
+      items = list.map(u => `<img src="${esc(u)}" referrerpolicy="no-referrer" alt="" onclick="openPreview(${id})">`);
+      const total = imgs.length || (d.cover_url ? 1 : 0);
+      if (total > 6) items.push(`<span class="rp-th-more" onclick="openPreview(${id})">+${total - 6} 张,点击预览</span>`);
+    }
+    if (items.length) { box.innerHTML = items.join(""); box.style.display = "flex"; }
+  } catch (e) { /* 预览失败不影响转发 */ }
 }
 function hideRepost() { $("repost").style.display = "none"; REPOST_ID = null; }
 async function submitRepost() {
@@ -2046,6 +2070,8 @@ async function submitRepost() {
     desc: $("rp-desc").value,
     topics: $("rp-topics").value.trim(),
     scheduled_at: $("rp-when").value || null,
+    visibility: $("rp-visibility") ? $("rp-visibility").value : "public",
+    allow_save: $("rp-allowsave") ? $("rp-allowsave").value !== "0" : true,
   };
   const pname = REPOST_TARGET === "douyin" ? "抖音" : "小红书";
   try {

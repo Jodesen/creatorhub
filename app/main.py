@@ -2349,6 +2349,8 @@ class RepostIn(BaseModel):
     title: str | None = None
     desc: str | None = None
     topics: str | None = None
+    visibility: str = "public"           # 抖音:public | friends | private
+    allow_save: bool = True              # 抖音:是否允许他人保存
 
 
 async def _repost_content(cid: int, body: RepostIn, target_platform: str):
@@ -2374,9 +2376,11 @@ async def _repost_content(cid: int, body: RepostIn, target_platform: str):
             raise HTTPException(400, "该账号不可发布:请对该号完成「小红书扫码登录」或「创作者登录」")
     # 2) 退出会话后再创建发布任务(create_relay_publish 内部自开会话)
     #    若前端传了编辑后的标题/正文/话题,则用编辑值覆盖作品原始内容
+    vis = body.visibility if body.visibility in ("public", "friends", "private") else "public"
     tid = engine.create_relay_publish(
         cid, body.account_id, target_platform=target_platform,
-        title=body.title, desc=body.desc, topics=body.topics)
+        title=body.title, desc=body.desc, topics=body.topics,
+        visibility=vis, allow_save=bool(body.allow_save))
     if not tid:
         raise HTTPException(400, "未找到该作品的本地文件,无法转发")
     # 3) 定时时间另开一个会话更新

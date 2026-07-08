@@ -971,7 +971,9 @@ class MonitorEngine:
     def create_relay_publish(self, content_id: int, account_id: int,
                              target_platform: str = "xhs",
                              title: Optional[str] = None, desc: Optional[str] = None,
-                             topics: Optional[str] = None) -> Optional[int]:
+                             topics: Optional[str] = None,
+                             visibility: str = "public", allow_save: bool = True
+                             ) -> Optional[int]:
         """从一条已下载的作品创建一个发往目标平台(小红书 / 抖音)的发布任务。返回任务 id。
 
         只接收作品 id,内部自开会话取记录,避免跨会话传入已绑定的 ORM 对象。
@@ -993,6 +995,7 @@ class MonitorEngine:
                 platform=target_platform, account_id=account_id,
                 media_type="video" if rec.media_type == "video" else "images",
                 title=t_title, desc=t_desc, topics=t_topics,
+                visibility=visibility, allow_save=allow_save,
                 media_json=json.dumps(files),
                 source_platform=rec.platform, source_content_id=rec.id,
             )
