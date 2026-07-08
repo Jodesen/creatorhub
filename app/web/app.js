@@ -2049,10 +2049,10 @@ async function renderRepostThumbs(id) {
       items = [`<div class="rp-th-ph" onclick="openPreview(${id})" title="点击预览视频">${ic("i-play")}</div>`];
     } else {
       const imgs = (d.medias || []).filter(m => m.kind === "image").map(m => m.url);
-      const list = (imgs.length ? imgs : (d.cover_url ? [d.cover_url] : [])).slice(0, 6);
-      items = list.map(u => `<img src="${esc(u)}" referrerpolicy="no-referrer" alt="" onclick="openPreview(${id})">`);
-      const total = imgs.length || (d.cover_url ? 1 : 0);
-      if (total > 6) items.push(`<span class="rp-th-more" onclick="openPreview(${id})">+${total - 6} 张,点击预览</span>`);
+      const all = imgs.length ? imgs : (d.cover_url ? [d.cover_url] : []);
+      const list = all.slice(0, 20);
+      items = list.map(u => `<img src="${esc(u)}" referrerpolicy="no-referrer" alt="" title="点击看大图" onclick="openPreview(${id})">`);
+      if (all.length > 20) items.push(`<span class="rp-th-more" onclick="openPreview(${id})">+${all.length - 20} 张</span>`);
     }
     if (items.length) { box.innerHTML = items.join(""); box.style.display = "flex"; }
   } catch (e) { /* 预览失败不影响转发 */ }

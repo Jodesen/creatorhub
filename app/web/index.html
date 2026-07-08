@@ -268,10 +268,11 @@
   .rp-box h2 { margin:0 0 16px; font-size:17px; }
   .rp-box .field { display:block; margin:0 0 5px; }
   .rp-src { color:var(--mut); font-size:12px; margin:-6px 0 2px; }
-  .rp-thumbs { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
-  .rp-thumbs img, .rp-thumbs .rp-th-ph { width:54px; height:54px; border-radius:8px; object-fit:cover; cursor:pointer; border:1px solid var(--line, #e5e5e5); background:var(--card, #f4f4f4); }
+  .rp-thumbs { display:flex; gap:8px; align-items:center; overflow-x:auto; padding:2px 0 6px; }
+  .rp-thumbs img, .rp-thumbs .rp-th-ph { flex:0 0 auto; width:66px; height:66px; border-radius:10px; object-fit:cover; cursor:zoom-in; border:1px solid var(--line, #e5e5e5); background:var(--card, #f4f4f4); transition:transform .12s, box-shadow .12s; }
+  .rp-thumbs img:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.18); }
   .rp-thumbs .rp-th-ph { display:flex; align-items:center; justify-content:center; }
-  .rp-thumbs .rp-th-more { color:var(--mut); font-size:12px; cursor:pointer; }
+  .rp-thumbs .rp-th-more { flex:0 0 auto; color:var(--mut); font-size:12px; cursor:pointer; white-space:nowrap; padding-right:4px; }
 
   /* carousel */
   .pv-carousel { position:relative; width:100%; overflow:hidden; }
@@ -1296,20 +1297,22 @@
         <label class="field" for="rp-acc">发布账号</label>
         <select id="rp-acc" aria-label="发布账号"></select>
       </div>
-      <div class="row dy-repost-only" id="rp-dy-opts" style="display:none;justify-content:flex-start;gap:18px;align-items:center">
-        <label class="field" style="flex:0 0 auto;margin:0;display:flex;align-items:center;gap:6px">谁可以看
-          <select id="rp-visibility" aria-label="谁可以看">
+      <div class="row dy-repost-only" id="rp-dy-opts" style="display:none;gap:14px;flex-wrap:wrap">
+        <div style="flex:1 1 190px;min-width:150px">
+          <label class="field" for="rp-visibility" style="white-space:nowrap">谁可以看</label>
+          <select id="rp-visibility" aria-label="谁可以看" style="width:100%">
             <option value="public">公开</option>
             <option value="friends">好友可见</option>
             <option value="private">仅自己可见</option>
           </select>
-        </label>
-        <label class="field" style="flex:0 0 auto;margin:0;display:flex;align-items:center;gap:6px">保存权限
-          <select id="rp-allowsave" aria-label="保存权限">
+        </div>
+        <div style="flex:1 1 190px;min-width:150px">
+          <label class="field" for="rp-allowsave" style="white-space:nowrap">保存权限</label>
+          <select id="rp-allowsave" aria-label="保存权限" style="width:100%">
             <option value="1">允许他人保存</option>
             <option value="0">不允许</option>
           </select>
-        </label>
+        </div>
       </div>
       <div>
         <label class="field" for="rp-title" id="rp-title-label">标题(≤20 字)</label>
