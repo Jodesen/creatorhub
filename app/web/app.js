@@ -1623,6 +1623,47 @@ function fmtTime(unix) { return unix ? new Date(unix * 1000).toLocaleString() : 
 function fmtDur(sec) { if (!sec) return ""; const m = Math.floor(sec / 60), s = sec % 60; return `${m}:${String(s).padStart(2, "0")}`; }
 function fmtNum(n) { return n >= 10000 ? (n / 10000).toFixed(1) + "w" : (n || 0); }
 
+function contentPathMeta(r) {
+  const raw = String(r.local_path || "").trim();
+  if (!raw) return null;
+  const splitAt = Math.max(raw.lastIndexOf("\\"), raw.lastIndexOf("/"));
+  const parent = splitAt >= 0 ? raw.slice(0, splitAt) : "";
+  let leaf = splitAt >= 0 ? raw.slice(splitAt + 1) : raw;
+  const prefix = String(r.aweme_id || "") + "_";
+  if (r.aweme_id && leaf.startsWith(prefix)) leaf = leaf.slice(prefix.length);
+  const dot = leaf.lastIndexOf(".");
+  const hasExt = dot > 0 && leaf.length - dot <= 10;
+  const name = hasExt ? leaf.slice(0, dot) : leaf;
+  const ext = hasExt ? leaf.slice(dot + 1).toUpperCase() : "";
+  const dirs = parent.split(/[\\/]+/).filter(Boolean);
+  return { name: name || leaf, ext, dir: dirs.slice(-2).join("\\") };
+}
+function contentPathCell(r) {
+  const p = contentPathMeta(r);
+  if (!p) return `<span class="local-path-empty">—</span>`;
+  return `<div class="local-path">
+    <div class="local-path-info">
+      <div class="local-path-file"><span class="local-path-name">${esc(p.name)}</span>${p.ext ? `<span class="local-path-ext">${esc(p.ext)}</span>` : ""}</div>
+      <div class="local-path-dir">${esc(p.dir || "当前目录")}</div>
+    </div>
+    <button type="button" class="ghost local-path-action reveal" onclick="revealContentPath(${r.id},this)" data-tip="在文件夹中显示" aria-label="在文件夹中显示">${ic("i-folder")}</button>
+  </div>`;
+}
+async function revealContentPath(id, btn) {
+  const old = btn && btn.innerHTML;
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="spin"></span>`; }
+  try {
+    await api(`/api/contents/${id}/reveal`, {
+      method: "POST", headers: { "X-CreatorHub-Local-Action": "reveal" },
+    });
+    toast("已在文件夹中显示", "ok", 1800);
+  } catch (e) {
+    toast("打开文件夹失败:" + e.message, "err");
+  } finally {
+    if (btn && btn.isConnected) { btn.disabled = false; btn.innerHTML = old; }
+  }
+}
+
 // ─── 批量选择 ───
 const selContent = new Set(), selComment = new Set();
 function pruneSel(set, ids) { const p = new Set(ids); [...set].forEach(id => { if (!p.has(id)) set.delete(id); }); }
@@ -1733,7 +1774,7 @@ async function refreshContents() {
       ${(PLATFORM === "xhs" && r.download_status === "done") ? ` <button class="ghost sm" onclick="repostDouyin(${r.id})">发抖音</button>` : ""}
       <button class="ghost sm" onclick="delContent(${r.id})">删除</button>
     </td>
-    <td class="mut num" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.local_path || "")}">${esc(r.local_path || "")}</td>
+    <td class="local-path-cell">${contentPathCell(r)}</td>
   </tr>`).join("") || empty(8, "暂无作品", "i-film", "监控目标有新作品时会自动抓取并下载,显示在这里");
   pruneSel(selContent, rows.map(r => r.id)); updateContentSelBar();
 }

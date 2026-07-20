@@ -591,6 +591,17 @@
   td.num { font-family:var(--mono); font-size:12.5px; }
   .acttd { text-align:right; white-space:nowrap; }
   .acttd button { margin-left:4px; }
+  .local-path-cell { width:220px; min-width:200px; max-width:240px; }
+  .local-path { display:grid; grid-template-columns:minmax(0,1fr) 28px; align-items:center; gap:8px; min-width:0; }
+  .local-path-info { min-width:0; }
+  .local-path-file { display:flex; align-items:baseline; gap:6px; min-width:0; }
+  .local-path-name { color:var(--fg); font:500 11.5px/1.35 var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .local-path-ext { flex:0 0 auto; color:var(--info); font:650 9.5px/1 var(--mono); }
+  .local-path-dir { margin-top:4px; color:var(--mut-2); font:400 10.5px/1.25 var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  button.local-path-action { width:28px; height:28px; padding:0; border-radius:6px; color:var(--mut); }
+  button.local-path-action:hover { color:var(--fg-strong); }
+  button.local-path-action.reveal { color:var(--info); }
+  .local-path-empty { color:var(--mut-2); }
 
   /* table inside a card without extra border for the small acc/notif tables */
   .mini-table { margin-top:14px; }
@@ -748,6 +759,7 @@
   <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></symbol>
   <symbol id="i-heart-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11M2 13l2-3h11l-1.4 7a2 2 0 0 1-2 1.7H7"/><path d="M7 10 11 2a2 2 0 0 1 2.7 2.3L13 10"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
 </svg>
 
 <header>
@@ -1185,7 +1197,7 @@
     </div>
     <div class="table-wrap" id="content-table-wrap"><table><thead><tr>
       <th style="width:30px"><input type="checkbox" id="content-selall" onchange="contentToggleAll(this.checked)" aria-label="全选"></th>
-      <th>封面</th><th>描述</th><th>类型</th><th>发布时间</th><th>数据</th><th>下载 / 操作</th><th>路径</th>
+      <th>封面</th><th>描述</th><th>类型</th><th>发布时间</th><th>数据</th><th>下载 / 操作</th><th>本地文件</th>
     </tr></thead><tbody id="content-table"></tbody></table></div>
     <div id="content-cards" class="xhs-grid" style="display:none"></div>
   </div>

@@ -19,6 +19,8 @@ from urllib.parse import urlparse
 
 from playwright.async_api import BrowserContext, async_playwright
 
+from ..windowing import (CHROMIUM_WINDOW_CLASSES, bring_window_to_front,
+                         capture_window_snapshot)
 from .identity import Identity, fingerprint_script
 
 _STEALTH = [
@@ -269,8 +271,12 @@ class BrowserManager:
     async def open_headed(self, identity: Identity) -> BrowserContext:
         """登录/发布:先关掉该账号常驻无头 context(同一 profile 不能并存),
         再开同 profile 的有头 context。调用方用完务必 await ctx.close()(关闭即落盘 Cookie)。"""
+        snapshot = capture_window_snapshot(CHROMIUM_WINDOW_CLASSES)
         await self.close_context(identity.key)
-        return await self._launch_persistent(identity, headless=False)
+        ctx = await self._launch_persistent(identity, headless=False)
+        await asyncio.to_thread(bring_window_to_front, snapshot,
+                                CHROMIUM_WINDOW_CLASSES, "", 1.5)
+        return ctx
 
 
 # 各平台 Cookie 顶域(子域如 creator./edith. 都吃顶域 cookie,一个就够)

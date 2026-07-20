@@ -2,16 +2,22 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import subprocess
+import sys
+import threading
 import traceback
 import uuid
 from contextlib import asynccontextmanager
+from ipaddress import ip_address
 from pathlib import Path
 from typing import Any, Dict
+from urllib.parse import urlsplit
 
 from datetime import datetime
 import uuid as _uuid
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -50,6 +56,8 @@ from .notifier import CHANNEL_TYPES, send_one
 from .profiles import (ensure_identity, migrate_identities, assign_proxy_from_pool,
                        seed_proxy_pool)
 from .settings import get_setting, set_setting
+from .windowing import (EXPLORER_WINDOW_CLASSES, bring_window_to_front,
+                        capture_window_snapshot)
 
 import json
 
@@ -60,6 +68,7 @@ im_receiver = None      # ImReceiverManager(私信实时接收)
 login_tasks: Dict[str, dict] = {}
 # 用户手动打开的账号浏览器窗口(account_id -> BrowserContext),留引用防 GC、便于复用/清理
 open_browsers: Dict[int, Any] = {}
+_file_manager_lock = threading.Lock()
 
 
 @asynccontextmanager
@@ -1878,15 +1887,45 @@ def _content_dict(r: ContentRecord) -> dict:
     }
 
 
-def _content_local_media_path(rec: ContentRecord) -> Path | None:
-    """Return the downloaded single-file media for a content record, if usable."""
+def _content_local_path(rec: ContentRecord) -> Path | None:
     if not rec.local_path:
         return None
-    path = Path(rec.local_path).expanduser()
     try:
-        return path if path.is_file() and path.stat().st_size > 0 else None
+        path = Path(rec.local_path).expanduser().resolve(strict=True)
+        return path if path.is_file() or path.is_dir() else None
+    except (OSError, RuntimeError):
+        return None
+
+
+def _content_local_media_path(rec: ContentRecord) -> Path | None:
+    """Return the downloaded single-file media for a content record, if usable."""
+    path = _content_local_path(rec)
+    try:
+        return path if path and path.is_file() and path.stat().st_size > 0 else None
     except OSError:
         return None
+
+
+def _reveal_in_file_manager(path: Path):
+    """Open a directory or select a file in the host OS file manager."""
+    target = str(path)
+    if sys.platform == "win32":
+        with _file_manager_lock:
+            folder = path if path.is_dir() else path.parent
+            snapshot = capture_window_snapshot(EXPLORER_WINDOW_CLASSES)
+            if path.is_dir():
+                os.startfile(target)  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["explorer.exe", "/select,", target])
+            bring_window_to_front(snapshot, EXPLORER_WINDOW_CLASSES,
+                                  title_hint=folder.name, timeout=2.5)
+        return
+    if sys.platform == "darwin":
+        args = ["open", target] if path.is_dir() else ["open", "-R", target]
+    else:
+        args = ["xdg-open", target if path.is_dir() else str(path.parent)]
+    subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
 
 
 @app.get("/api/contents/{cid}/media")
@@ -1925,6 +1964,45 @@ async def content_local_media(cid: int):
         content_disposition_type="inline",
         headers={"Cache-Control": "private, no-cache"},
     )
+
+
+@app.post("/api/contents/{cid}/reveal")
+async def reveal_content_file(cid: int, request: Request):
+    """在服务所在电脑的文件管理器中打开本地目录或定位文件。"""
+    def is_loopback(host: str) -> bool:
+        host = host.split("%", 1)[0].casefold()
+        if host == "localhost":
+            return True
+        try:
+            return ip_address(host).is_loopback
+        except ValueError:
+            return False
+
+    client_host = request.client.host if request.client else ""
+    page_host = request.url.hostname or ""
+    try:
+        origin = urlsplit(request.headers.get("origin", ""))
+        same_origin = (origin.scheme == request.url.scheme and
+                       (origin.hostname or "").casefold() == page_host.casefold() and
+                       origin.port == request.url.port)
+    except ValueError:
+        same_origin = False
+    local_action = request.headers.get("x-creatorhub-local-action") == "reveal"
+    if not is_loopback(client_host) or not is_loopback(page_host) or \
+            not same_origin or not local_action:
+        raise HTTPException(403, "仅允许从本机 CreatorHub 页面打开文件夹")
+    with get_session() as s:
+        rec = s.get(ContentRecord, cid)
+        if not rec:
+            raise HTTPException(404, "记录不存在")
+        path = _content_local_path(rec)
+    if not path:
+        raise HTTPException(404, "本地文件不存在")
+    try:
+        await asyncio.to_thread(_reveal_in_file_manager, path)
+    except OSError as e:
+        raise HTTPException(500, f"打开文件夹失败:{e}") from e
+    return {"ok": True}
 
 
 @app.post("/api/contents/{cid}/retry-download")
